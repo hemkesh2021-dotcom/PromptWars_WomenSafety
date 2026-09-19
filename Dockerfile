@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:22-alpine
 
 # Create non-root user for security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
@@ -12,7 +12,7 @@ COPY package.json ./
 RUN npm install --omit=dev --ignore-scripts
 
 # Copy app source (excluded: .env, .git — see .dockerignore)
-COPY . .
+COPY server.js app.js index.html style.css ./
 
 # Switch to non-root user
 USER appuser

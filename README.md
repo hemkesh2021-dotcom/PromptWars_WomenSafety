@@ -2,20 +2,24 @@
 
 > **Women Safety Mode · Real-time Routing · Live Map**
 
-An urban mobility decision cockpit that compares multiple routes and recommends the safest one by combining live ETA, traffic conditions, weather data, and a contextual safety score. Built with a dedicated **Women Safety Mode** that applies additional risk weighting to route selection.
+An urban mobility decision cockpit that compares multiple routes and compares them using an unvalidated heuristic by combining live ETA, traffic conditions, weather data, and a contextual safety score. Built with a dedicated **Women Safety Mode** that applies additional risk weighting to route selection.
 
 ---
+
+## Limitations
+
+This is a routing prototype, not an emergency service. Route scores are heuristics and do not establish personal safety. There are no verified police-post, lighting, safe-zone or traffic-bottleneck overlays. Do not use the app as evidence that a route is safe.
 
 ## Features
 
 - 🗺️ **Live interactive map** — routes drawn on OpenStreetMap via Leaflet
 - 🔀 **Route A vs Route B comparison** — distance, ETA, derived risk, and safety score side-by-side
-- 🚨 **Women Safety Mode** — extra penalty applied to risk scoring so the safest route is always preferred
+- 🚨 **Women Safety Mode** — extra penalty applied to risk scoring for an experimental comparison
 - 🚦 **Real-time traffic ETA** — Google Directions API with live traffic (`duration_in_traffic`)
 - 🌦️ **Auto weather fetch** — Open-Meteo forecast for the travel hour (no API key required)
 - 📍 **Address autocomplete** — powered by Nominatim (free, no key)
 - 📅 **Calendar reminder** — one-click `.ics` download with a 5-minute lead reminder
-- 📲 **SOS / live location share** — emergency share button in Women Safety Mode
+- **SOS / live location sharing is not implemented.** The disabled demo control never notifies contacts.
 - 🐳 **Docker-ready** — hardened non-root container, single `docker run` command
 
 ---
@@ -24,20 +28,20 @@ An urban mobility decision cockpit that compares multiple routes and recommends 
 
 | Layer | Technology |
 |---|---|
-| Server | Node.js 18 (zero-dependency custom HTTP server) |
+| Server | Node.js 22 (zero-dependency custom HTTP server) |
 | Map UI | Leaflet 1.9 + OpenStreetMap tiles |
 | Primary routing | Google Directions API (traffic-aware, multi-modal) |
 | Fallback routing | OSRM (public instance, driving) |
 | Geocoding / autocomplete | Nominatim (OpenStreetMap) |
 | Weather | Open-Meteo hourly forecast |
-| Container | Docker (node:18-alpine, non-root) |
+| Container | Docker (node:22-alpine, non-root) |
 | Cloud deploy | Google Cloud Run |
 
 ---
 
 ## Prerequisites
 
-- **Node.js ≥ 18** (for local development)
+- **Node.js ≥ 22** (for local development)
 - **Docker** (optional, for containerised runs)
 - **Google Maps API key** with the *Directions API* enabled (optional — the app falls back to OSRM when no key is provided)
 
@@ -142,23 +146,14 @@ Fetches an hourly weather forecast from Open-Meteo (free, no key required).
 |---|---|---|
 | `lat` | ✅ | Latitude |
 | `lng` | ✅ | Longitude |
-| `date` | | `YYYY-MM-DD` (defaults to today) |
-| `hour` | | `0`–`23` (defaults to 0) |
+| `date` | ✅ | `YYYY-MM-DD` within the available forecast |
+| `hour` | ✅ | `0`–`23` |
 
 ---
 
-## Safety scoring
+## Heuristic scoring
 
-The decision engine scores each route out of **10** and applies the following weighted penalties:
-
-| Factor | Penalty range |
-|---|---|
-| Base contextual risk (slider) | 1 – 10 |
-| Weather (Clear → Heavy Rain) | 0 – 1.5 |
-| Traffic (Low → Severe) | 0.1 – 0.9 |
-| Women Safety Mode multiplier | ×1.25 applied to the higher-risk route's final score, making it less likely to be recommended |
-
-The route with the **lower derived risk score** is recommended. In Women Safety Mode the final score of whichever route has the higher risk is multiplied by 1.25, increasing the gap so the safer route wins more decisively.
+`buildRouteProfile` in `app.js` combines user-selected contextual risk, weather, traffic, time of day, distance and travel duration. `pickBestRoute` changes the score weights in Women Safety Mode. These weights have not been validated against personal-safety outcomes. A higher displayed score does not establish that a route is safe, and the app has no verified crime, lighting or police-location dataset.
 
 ---
 
@@ -173,10 +168,14 @@ gcloud run deploy urbanroute-iq \
   --set-env-vars GOOGLE_MAPS_API_KEY=<YOUR_GOOGLE_MAPS_API_KEY>
 ```
 
-The `Dockerfile` uses a non-root `appuser` and the `node:18-alpine` base image.
+The `Dockerfile` uses a non-root `appuser` and the `node:22-alpine` base image.
 
 ---
 
 ## License
 
 MIT
+
+## Security and verification
+
+`npm test` checks the actual HTTP handler for blocked server files, traversal, invalid input and rate limiting. Only the three frontend files are publicly served. API requests are capped at 30/minute per socket address; a reverse proxy can therefore share this limit across clients. For deployment, configure trusted-proxy identity and a shared rate-limit/quota service before scaling out; do not trust arbitrary forwarded headers. Restrict the Google key and configure provider quotas. Upstream calls have a 10-second deadline and a 2 MiB response limit.

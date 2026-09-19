@@ -247,49 +247,16 @@ function drawRoutesOnMap(startLL, endLL, polylineA, polylineB) {
   const ctx = buildContext({ time, risk: 6, weather: 'Clear', traffic }); 
 
   if (traffic === 'High' || traffic === 'Severe') {
-    drawTrafficZones(polylineA);
+    // No traffic-location overlay without a verified source.
   }
 
   if (mode === 'Women Safety Mode' && ctx.night.risk > 0) {
-    drawSafeZones(polylineA);
+    // No safe-zone overlay without a verified source.
   }
 
   // Fit bounds to show all routes
   const group = L.featureGroup([routeLayerA, routeLayerB, startMarker, endMarker, ...trafficZones, ...safeZones].filter(Boolean));
   map.fitBounds(group.getBounds().pad(0.15));
-}
-
-function drawTrafficZones(polyline) {
-  if (!polyline || polyline.length < 5) return;
-  // Pick an arbitrary bottleneck at 60% of the route
-  const bottleneckIndex = Math.floor(polyline.length * 0.6);
-  const pt = polyline[bottleneckIndex];
-  const circle = L.circle(pt, {
-    color: 'transparent',
-    fillColor: '#f43f5e',
-    fillOpacity: 0.5,
-    radius: 700,
-    className: 'traffic-pulse-circle'
-  }).addTo(map).bindPopup('<strong style="color:var(--rose)">High Traffic Bottleneck</strong><br>Avoid this gridlock area.');
-  trafficZones.push(circle);
-}
-
-function drawSafeZones(polyline) {
-  if (!polyline || polyline.length < 5) return;
-  // Put a safe zone at 25% and 75%
-  const i1 = Math.floor(polyline.length * 0.25);
-  const i2 = Math.floor(polyline.length * 0.75);
-  [i1, i2].forEach(idx => {
-    const pt = polyline[idx];
-    const circle = L.circle(pt, {
-      color: 'transparent',
-      fillColor: '#06b6d4',
-      fillOpacity: 0.5,
-      radius: 500,
-      className: 'safe-zone-pulse'
-    }).addTo(map).bindPopup('<strong style="color:var(--cyan)">Verified Safe Zone</strong><br>Well-lit area / Police post.');
-    safeZones.push(circle);
-  });
 }
 
 /* ---------- Focus / highlight a specific route ---------- */
@@ -701,7 +668,7 @@ function renderDecision(ch, alt, data, ctx) {
   el.strictOutput.textContent =
 `🚦 Route: ${ch.name}
 ⏱ ETA: ${ch.eta} mins
-🛡 Safety Score: ${score}/10
+🛡 Heuristic Route Score: ${score}/10
 
 💡 Reason:
 ${reason.lineOne}
@@ -742,7 +709,8 @@ ${tip}${transitText}`;
   
   if (data.mode === 'Women Safety Mode' && ctx.night.risk > 0) {
     el.sosBtn.classList.remove('hidden');
-    el.sosBtn.onclick = () => alert("SOS Triggered! Location shared with emergency contacts.");
+    el.sosBtn.disabled = true;
+    el.sosBtn.textContent = "SOS unavailable — no contacts will be notified";
   } else {
     el.sosBtn.classList.add('hidden');
   }
@@ -937,3 +905,4 @@ function initialise() {
 }
 
 initialise();
+
