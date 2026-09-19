@@ -1,16 +1,22 @@
 {
   "name": "urbanroute-iq",
   "version": "1.0.0",
-  "description": "AI Urban Mobility Intelligence — safe route decision cockpit",
+  "description": "Prototype route comparison using live routing data and heuristic scores",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "test": "node --test"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
-  "keywords": ["urban-mobility", "routing", "maps", "safety"],
+  "keywords": [
+    "urban-mobility",
+    "routing",
+    "maps",
+    "safety"
+  ],
   "author": "",
   "license": "MIT"
 }
