@@ -605,23 +605,23 @@ function buildReason(ch, alt, data, ctx) {
   const rg = roundOne(Math.abs(ch.estimatedRisk - alt.estimatedRisk));
   let l1;
   if (ch.eta <= alt.eta && ch.estimatedRisk <= alt.estimatedRisk)
-    l1 = `${ch.name} is faster and keeps derived risk below ${alt.name} by ${rg}.`;
+    l1 = `${ch.name} has a shorter or equal ETA and a lower or equal heuristic risk than ${alt.name} by ${rg}.`;
   else if (ch.eta < alt.eta)
-    l1 = `${ch.name} saves ${eg} mins while keeping safety within limits.`;
+    l1 = `${ch.name} saves ${eg} mins under the selected heuristic weighting; personal safety is not assessed.`;
   else
-    l1 = `${ch.name} adds ${eg} mins but avoids the higher-risk profile of ${alt.name}.`;
+    l1 = `${ch.name} adds ${eg} mins and has a lower heuristic risk score than ${alt.name}; personal safety is not assessed.`;
 
   const n = [];
-  if (data.mode === "Women Safety Mode") n.push("Women Safety Mode prioritised safety over speed");
-  if (ctx.night.risk > 0) n.push(`${ctx.night.label} lowered the safety baseline`);
+  if (data.mode === "Women Safety Mode") n.push("Women Safety Mode prioritised unvalidated risk heuristics over speed");
+  if (ctx.night.risk > 0) n.push(`${ctx.night.label} increased the heuristic risk adjustment`);
   if (ctx.weather.risk > 0.6) n.push(`${data.weather.toLowerCase()} conditions added caution`);
-  if (!n.length) n.push(`${data.traffic.toLowerCase()} traffic kept ETA and safety closely matched`);
+  if (!n.length) n.push(`${data.traffic.toLowerCase()} traffic informed the ETA and heuristic comparison`);
   return { lineOne: l1, lineTwo: `${n.slice(0,2).join(", ")}.` };
 }
 
 function buildTip(data, ctx) {
   if (data.mode === "Women Safety Mode" && ctx.night.risk > 0)
-    return "Share live location before departure and avoid switching to isolated side roads.";
+    return "If you choose to share your location, use a separate trusted service; this app cannot share it or notify contacts.";
   if (ctx.weather.risk >= 0.8)
     return "Reduce speed on turns and stay on lit main corridors where visibility is better.";
   if (ctx.traffic.risk >= 0.75)
@@ -646,8 +646,8 @@ function renderComparison(rA, rB, ch, data, ctx) {
 
   const margin = roundOne(Math.abs(rA.safetyScore - rB.safetyScore));
   el.contextSummary.textContent = `${data.weather} • ${data.traffic} • ${ctx.night.label}`;
-  el.biasSummary.textContent    = data.mode === "Women Safety Mode" ? "Safety-first weighting" : "Balanced ETA weighting";
-  el.marginSummary.textContent  = `${margin} safety-point spread`;
+  el.biasSummary.textContent    = data.mode === "Women Safety Mode" ? "Experimental risk weighting" : "Balanced ETA weighting";
+  el.marginSummary.textContent  = `${margin} heuristic-point spread`;
 
   highlightWinner(ch.name);
 }
