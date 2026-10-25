@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Advanced urban mobility intelligence for safer route recommendations with real-time ETA, traffic, weather, and contextual risk analysis.">
+  <meta name="description" content="Prototype route comparison using ETA, traffic, weather, and unvalidated heuristics; not a personal-safety assessment.">
   <title>UrbanRoute IQ</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,14 +13,15 @@
   <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
+  <p role="note" style="padding:1rem;text-align:center">Routing prototype: scores are unvalidated heuristics, not verified personal-safety assessments. SOS and live-location sharing are unavailable. No emergency contacts are notified.</p>
   <div class="page-shell">
     <header class="hero">
       <div class="hero-copy">
         <p class="eyebrow">Urban Mobility Intelligence</p>
-        <h1>Map safer. Decide faster.</h1>
+        <h1>Compare routes. Explore trade-offs.</h1>
         <p class="hero-text">
           A route-decision cockpit that compares ETA, traffic, weather, and contextual travel risk,
-          then emits a strict operator-ready recommendation with live route visualization.
+          using unvalidated heuristics and live route visualization, not verified personal-safety data.
         </p>
         <div class="hero-tags">
           <span class="tag">Live Route Map</span>
@@ -242,7 +243,7 @@
               <div><span class="metric-label">Distance</span><strong id="cardDistA">--</strong></div>
               <div><span class="metric-label">ETA</span><strong id="cardEtaA">--</strong></div>
               <div><span class="metric-label">Derived Risk</span><strong id="cardRiskA">--</strong></div>
-              <div><span class="metric-label">Safety</span><strong id="cardSafetyA">--</strong></div>
+              <div><span class="metric-label">Heuristic score</span><strong id="cardSafetyA">--</strong></div>
             </div>
           </article>
           <article class="comparison-card comparison-card-b" id="routeBCard">
@@ -254,7 +255,7 @@
               <div><span class="metric-label">Distance</span><strong id="cardDistB">--</strong></div>
               <div><span class="metric-label">ETA</span><strong id="cardEtaB">--</strong></div>
               <div><span class="metric-label">Derived Risk</span><strong id="cardRiskB">--</strong></div>
-              <div><span class="metric-label">Safety</span><strong id="cardSafetyB">--</strong></div>
+              <div><span class="metric-label">Heuristic score</span><strong id="cardSafetyB">--</strong></div>
             </div>
           </article>
         </div>
@@ -283,7 +284,7 @@
           </div>
         </div>
 
-        <pre class="strict-output" id="strictOutput" aria-live="polite">Click "Fetch routes & analyze" to get route data and generate a safety recommendation.</pre>
+        <pre class="strict-output" id="strictOutput" aria-live="polite">Click "Fetch routes & analyze" to get route data and generate a heuristic comparison.</pre>
 
         <div class="trip-notification-box hidden" id="tripNotificationBox">
           <div class="trip-notification-title">Trip Plan Overview</div>
@@ -304,9 +305,9 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
               Add to Reminders (-5m)
             </button>
-            <button type="button" class="sos-btn hidden" id="sosBtn">
+            <button type="button" class="sos-btn hidden" id="sosBtn" disabled>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-              Share Live Location (SOS)
+              SOS unavailable (demo)
             </button>
           </div>
         </div>
@@ -320,7 +321,7 @@
             <strong id="decisionEta">--</strong>
           </article>
           <article class="decision-card">
-            <span class="decision-label">Safety Score</span>
+            <span class="decision-label">Heuristic score</span>
             <strong id="decisionSafety">--</strong>
           </article>
         </div>
@@ -333,3 +334,4 @@
   <script src="app.js?v=3"></script>
 </body>
 </html>
+

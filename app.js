@@ -247,49 +247,16 @@ function drawRoutesOnMap(startLL, endLL, polylineA, polylineB) {
   const ctx = buildContext({ time, risk: 6, weather: 'Clear', traffic }); 
 
   if (traffic === 'High' || traffic === 'Severe') {
-    drawTrafficZones(polylineA);
+    // No traffic-location overlay without a verified source.
   }
 
   if (mode === 'Women Safety Mode' && ctx.night.risk > 0) {
-    drawSafeZones(polylineA);
+    // No safe-zone overlay without a verified source.
   }
 
   // Fit bounds to show all routes
   const group = L.featureGroup([routeLayerA, routeLayerB, startMarker, endMarker, ...trafficZones, ...safeZones].filter(Boolean));
   map.fitBounds(group.getBounds().pad(0.15));
-}
-
-function drawTrafficZones(polyline) {
-  if (!polyline || polyline.length < 5) return;
-  // Pick an arbitrary bottleneck at 60% of the route
-  const bottleneckIndex = Math.floor(polyline.length * 0.6);
-  const pt = polyline[bottleneckIndex];
-  const circle = L.circle(pt, {
-    color: 'transparent',
-    fillColor: '#f43f5e',
-    fillOpacity: 0.5,
-    radius: 700,
-    className: 'traffic-pulse-circle'
-  }).addTo(map).bindPopup('<strong style="color:var(--rose)">High Traffic Bottleneck</strong><br>Avoid this gridlock area.');
-  trafficZones.push(circle);
-}
-
-function drawSafeZones(polyline) {
-  if (!polyline || polyline.length < 5) return;
-  // Put a safe zone at 25% and 75%
-  const i1 = Math.floor(polyline.length * 0.25);
-  const i2 = Math.floor(polyline.length * 0.75);
-  [i1, i2].forEach(idx => {
-    const pt = polyline[idx];
-    const circle = L.circle(pt, {
-      color: 'transparent',
-      fillColor: '#06b6d4',
-      fillOpacity: 0.5,
-      radius: 500,
-      className: 'safe-zone-pulse'
-    }).addTo(map).bindPopup('<strong style="color:var(--cyan)">Verified Safe Zone</strong><br>Well-lit area / Police post.');
-    safeZones.push(circle);
-  });
 }
 
 /* ---------- Focus / highlight a specific route ---------- */
@@ -638,23 +605,23 @@ function buildReason(ch, alt, data, ctx) {
   const rg = roundOne(Math.abs(ch.estimatedRisk - alt.estimatedRisk));
   let l1;
   if (ch.eta <= alt.eta && ch.estimatedRisk <= alt.estimatedRisk)
-    l1 = `${ch.name} is faster and keeps derived risk below ${alt.name} by ${rg}.`;
+    l1 = `${ch.name} has a shorter or equal ETA and a lower or equal heuristic risk than ${alt.name} by ${rg}.`;
   else if (ch.eta < alt.eta)
-    l1 = `${ch.name} saves ${eg} mins while keeping safety within limits.`;
+    l1 = `${ch.name} saves ${eg} mins under the selected heuristic weighting; personal safety is not assessed.`;
   else
-    l1 = `${ch.name} adds ${eg} mins but avoids the higher-risk profile of ${alt.name}.`;
+    l1 = `${ch.name} adds ${eg} mins and has a lower heuristic risk score than ${alt.name}; personal safety is not assessed.`;
 
   const n = [];
-  if (data.mode === "Women Safety Mode") n.push("Women Safety Mode prioritised safety over speed");
-  if (ctx.night.risk > 0) n.push(`${ctx.night.label} lowered the safety baseline`);
+  if (data.mode === "Women Safety Mode") n.push("Women Safety Mode prioritised unvalidated risk heuristics over speed");
+  if (ctx.night.risk > 0) n.push(`${ctx.night.label} increased the heuristic risk adjustment`);
   if (ctx.weather.risk > 0.6) n.push(`${data.weather.toLowerCase()} conditions added caution`);
-  if (!n.length) n.push(`${data.traffic.toLowerCase()} traffic kept ETA and safety closely matched`);
+  if (!n.length) n.push(`${data.traffic.toLowerCase()} traffic informed the ETA and heuristic comparison`);
   return { lineOne: l1, lineTwo: `${n.slice(0,2).join(", ")}.` };
 }
 
 function buildTip(data, ctx) {
   if (data.mode === "Women Safety Mode" && ctx.night.risk > 0)
-    return "Share live location before departure and avoid switching to isolated side roads.";
+    return "If you choose to share your location, use a separate trusted service; this app cannot share it or notify contacts.";
   if (ctx.weather.risk >= 0.8)
     return "Reduce speed on turns and stay on lit main corridors where visibility is better.";
   if (ctx.traffic.risk >= 0.75)
@@ -679,8 +646,8 @@ function renderComparison(rA, rB, ch, data, ctx) {
 
   const margin = roundOne(Math.abs(rA.safetyScore - rB.safetyScore));
   el.contextSummary.textContent = `${data.weather} • ${data.traffic} • ${ctx.night.label}`;
-  el.biasSummary.textContent    = data.mode === "Women Safety Mode" ? "Safety-first weighting" : "Balanced ETA weighting";
-  el.marginSummary.textContent  = `${margin} safety-point spread`;
+  el.biasSummary.textContent    = data.mode === "Women Safety Mode" ? "Experimental risk weighting" : "Balanced ETA weighting";
+  el.marginSummary.textContent  = `${margin} heuristic-point spread`;
 
   highlightWinner(ch.name);
 }
@@ -701,7 +668,7 @@ function renderDecision(ch, alt, data, ctx) {
   el.strictOutput.textContent =
 `🚦 Route: ${ch.name}
 ⏱ ETA: ${ch.eta} mins
-🛡 Safety Score: ${score}/10
+🛡 Heuristic Route Score: ${score}/10
 
 💡 Reason:
 ${reason.lineOne}
@@ -742,7 +709,8 @@ ${tip}${transitText}`;
   
   if (data.mode === 'Women Safety Mode' && ctx.night.risk > 0) {
     el.sosBtn.classList.remove('hidden');
-    el.sosBtn.onclick = () => alert("SOS Triggered! Location shared with emergency contacts.");
+    el.sosBtn.disabled = true;
+    el.sosBtn.textContent = "SOS unavailable — no contacts will be notified";
   } else {
     el.sosBtn.classList.add('hidden');
   }
@@ -937,3 +905,4 @@ function initialise() {
 }
 
 initialise();
+

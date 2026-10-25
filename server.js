@@ -40,8 +40,48 @@ const MIME = {
   '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml',
 };
 
+const STATIC_FILES = new Set(['/index.html', '/app.js', '/style.css']);
+const apiWindows = new Map();
+function allowApi(ip) {
+  const now = Date.now();
+  for (const [key, entry] of apiWindows) if (entry.until <= now) apiWindows.delete(key);
+  let entry = apiWindows.get(ip);
+  if (!entry) {
+    if (apiWindows.size >= 10000) return false;
+    entry = { count: 0, until: now + 60000 };
+    apiWindows.set(ip, entry);
+  }
+  return ++entry.count <= 30;
+}
+
 const server = http.createServer((req, res) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return sendJSON(res, 405, { error: 'Method not allowed' });
+  }
+  if (req.url.length > 4096) return sendJSON(res, 414, { error: 'URL too long' });
   const parsed = url.parse(req.url, true);
+  if (parsed.pathname.startsWith('/api/')) {
+    if (!allowApi(req.socket.remoteAddress)) {
+      res.setHeader('Retry-After', '60');
+      return sendJSON(res, 429, { error: 'Too many requests; try again in one minute' });
+    }
+    for (const value of Object.values(parsed.query)) {
+      if (typeof value !== 'string' || value.length > 500 || /[\x00-\x1f]/.test(value)) {
+        return sendJSON(res, 400, { error: 'Invalid query parameter' });
+      }
+    }
+    for (const [key, max] of [['lat',90],['lng',180],['startLat',90],['startLng',180],['endLat',90],['endLng',180]]) {
+      if (key in parsed.query && (!parsed.query[key].trim() || !Number.isFinite(Number(parsed.query[key])) || Math.abs(Number(parsed.query[key])) > max)) {
+        return sendJSON(res, 400, { error: 'Invalid coordinate' });
+      }
+    }
+    for (const key of ['arrival_time', 'departure_time']) {
+      if (key in parsed.query && !/^\d{1,12}$/.test(parsed.query[key])) return sendJSON(res, 400, { error: 'Invalid timestamp' });
+    }
+  }
 
   // ── Google Directions API (primary — real traffic ETA) ──
   if (parsed.pathname === '/api/directions') {
@@ -69,7 +109,9 @@ const server = http.createServer((req, res) => {
   }
 
   // ── Static files ──
-  const filePath = path.join(DIR, parsed.pathname === '/' ? 'index.html' : parsed.pathname);
+  const requested = parsed.pathname === '/' ? '/index.html' : parsed.pathname;
+  if (!STATIC_FILES.has(requested)) { res.writeHead(404); return res.end('Not found'); }
+  const filePath = path.join(DIR, requested);
   const ext = path.extname(filePath);
   fs.readFile(filePath, (err, data) => {
     if (err) { res.writeHead(404); return res.end('Not found'); }
@@ -257,17 +299,31 @@ function formatDuration(s) {
 }
 
 function httpsGet(apiUrl, headers, cb) {
-  const opts = url.parse(apiUrl);
-  opts.headers = { ...headers };
-  https.get(opts, (r) => {
-    let body = '';
-    r.on('data', d => body += d);
-    r.on('end', () => cb(null, body));
-  }).on('error', e => cb(e));
+  let completed = false;
+  const finish = (err, body) => { if (!completed) { completed = true; cb(err, body); } };
+  const request = https.get(apiUrl, { headers }, (response) => {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      response.resume();
+      return finish(new Error('Upstream service failed'));
+    }
+    let body = '', bytes = 0;
+    response.on('data', chunk => {
+      bytes += chunk.length;
+      if (bytes > 2 * 1024 * 1024) {
+        finish(new Error('Upstream response too large'));
+        request.destroy();
+      } else body += chunk;
+    });
+    response.on('end', () => finish(null, body));
+    response.on('error', () => finish(new Error('Upstream response interrupted')));
+  });
+  const deadline = setTimeout(() => request.destroy(new Error('Upstream timeout')), 10000);
+  request.on('close', () => clearTimeout(deadline));
+  request.on('error', () => finish(new Error('Upstream service unavailable')));
 }
 
 function sendJSON(res, code, obj) {
-  res.writeHead(code, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+  res.writeHead(code, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify(obj));
 }
 
@@ -294,7 +350,7 @@ function proxyWeather(query, res) {
       // Find matching hour in forecast
       const targetStr = `${date}T${String(hour).padStart(2, '0')}:00`;
       let idx = data.hourly.time.indexOf(targetStr);
-      if (idx === -1) idx = 0; // fallback to first entry
+      if (idx === -1) return sendJSON(res, 400, { error: 'Requested hour is outside the available forecast' });
 
       const weatherCode = data.hourly.weather_code[idx];
       const temperature = data.hourly.temperature_2m[idx];
@@ -322,6 +378,8 @@ function mapWeatherCode(code) {
   return 'Clear';
 }
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+if (require.main === module) {
+  server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
+module.exports = { server, allowApi };
+
